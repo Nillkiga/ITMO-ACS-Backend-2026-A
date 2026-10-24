@@ -20,3 +20,6 @@ Workflow: `.github/workflows/deploy.yml`. Триггер: push в `main` (и р�
 ## Ограничения
 
 Откат не реализован, HTTPS нет, удалённые из репозитория файлы на сервере остаются.
+
+
+grklermnotrejntretreion

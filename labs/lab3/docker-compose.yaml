@@ -1,7 +1,4 @@
-# Все порты на хост - только 127.0.0.1; наружу их отдаёт nginx сервера (labs/lab4/nginx/backend.conf):
-#   8010 gateway (весь API), 8011-8014 - Swagger сервисов (/docs). БД и RabbitMQ на хост не публикуются.
-
-name: restaurant-booking   # уникальное имя проекта: на сервере живёт и чужой compose
+name: restaurant-booking
 
 services:
   # --- Базы данных ---
