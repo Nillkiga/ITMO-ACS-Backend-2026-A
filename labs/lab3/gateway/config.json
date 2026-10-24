@@ -1,0 +1,16 @@
+{
+  "routes": {
+    "/api/auth": "http://auth-user-service:8001",
+    "/api/users": "http://auth-user-service:8001",
+    "/api/restaurants": "http://restaurant-service:8002",
+    "/api/reservations": "http://reservation-service:8003",
+    "/api/reviews": "http://review-service:8004"
+  },
+  "protectedRoutes": [
+    "/api/users/me",
+    "/api/users/*",
+    "/api/reservations",
+    "/api/reservations/*",
+    "/api/reviews"
+  ]
+}

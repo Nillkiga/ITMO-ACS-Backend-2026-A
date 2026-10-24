@@ -1,0 +1,228 @@
+# Все порты на хост - только 127.0.0.1; наружу их отдаёт nginx сервера (labs/lab4/nginx/backend.conf):
+#   8010 gateway (весь API), 8011-8014 - Swagger сервисов (/docs). БД и RabbitMQ на хост не публикуются.
+
+name: restaurant-booking   # уникальное имя проекта: на сервере живёт и чужой compose
+
+services:
+  # --- Базы данных ---
+  auth-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${AUTH_DB_NAME:-auth_user_db}
+      POSTGRES_USER: ${AUTH_DB_USER:-auth_user}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:?Задай AUTH_DB_PASSWORD в .env}
+    volumes:
+      - auth_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AUTH_DB_USER:-auth_user} -d ${AUTH_DB_NAME:-auth_user_db}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - internal
+
+  restaurant-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${RESTAURANT_DB_NAME:-restaurant_db}
+      POSTGRES_USER: ${RESTAURANT_DB_USER:-restaurant_user}
+      POSTGRES_PASSWORD: ${RESTAURANT_DB_PASSWORD:?Задай RESTAURANT_DB_PASSWORD в .env}
+    volumes:
+      - restaurant_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${RESTAURANT_DB_USER:-restaurant_user} -d ${RESTAURANT_DB_NAME:-restaurant_db}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - internal
+
+  reservation-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${RESERVATION_DB_NAME:-reservation_db}
+      POSTGRES_USER: ${RESERVATION_DB_USER:-reservation_user}
+      POSTGRES_PASSWORD: ${RESERVATION_DB_PASSWORD:?Задай RESERVATION_DB_PASSWORD в .env}
+    volumes:
+      - reservation_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${RESERVATION_DB_USER:-reservation_user} -d ${RESERVATION_DB_NAME:-reservation_db}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - internal
+
+  review-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${REVIEW_DB_NAME:-review_db}
+      POSTGRES_USER: ${REVIEW_DB_USER:-review_user}
+      POSTGRES_PASSWORD: ${REVIEW_DB_PASSWORD:?Задай REVIEW_DB_PASSWORD в .env}
+    volumes:
+      - review_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${REVIEW_DB_USER:-review_user} -d ${REVIEW_DB_NAME:-review_db}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - internal
+
+  # --- Сервисы ---
+  auth-user-service:
+    build:
+      context: ./services/auth-user-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: ${AUTH_USER_PORT:-8001}
+      DB_HOST: auth-db
+      DB_PORT: 5432
+      DB_USER: ${AUTH_DB_USER:-auth_user}
+      DB_PASSWORD: ${AUTH_DB_PASSWORD:?Задай AUTH_DB_PASSWORD в .env}
+      DB_NAME: ${AUTH_DB_NAME:-auth_user_db}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Задай JWT_SECRET_KEY в .env}
+      JWT_ACCESS_TOKEN_LIFETIME: ${JWT_ACCESS_TOKEN_LIFETIME:-3600}
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${AUTH_USER_HOST_PORT:-8011}:8001"   # только для Swagger (/docs) через nginx
+    networks:
+      - internal
+
+  restaurant-service:
+    build:
+      context: ./services/restaurant-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: ${RESTAURANT_PORT:-8002}
+      DB_HOST: restaurant-db
+      DB_PORT: 5432
+      DB_USER: ${RESTAURANT_DB_USER:-restaurant_user}
+      DB_PASSWORD: ${RESTAURANT_DB_PASSWORD:?Задай RESTAURANT_DB_PASSWORD в .env}
+      DB_NAME: ${RESTAURANT_DB_NAME:-restaurant_db}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:?Задай INTERNAL_TOKEN в .env}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-booking}:${RABBITMQ_PASS:?Задай RABBITMQ_PASS в .env}@rabbitmq:5672
+    depends_on:
+      restaurant-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${RESTAURANT_HOST_PORT:-8012}:8002"   # только для Swagger (/docs) через nginx
+    networks:
+      - internal
+
+  reservation-service:
+    build:
+      context: ./services/reservation-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: ${RESERVATION_PORT:-8003}
+      DB_HOST: reservation-db
+      DB_PORT: 5432
+      DB_USER: ${RESERVATION_DB_USER:-reservation_user}
+      DB_PASSWORD: ${RESERVATION_DB_PASSWORD:?Задай RESERVATION_DB_PASSWORD в .env}
+      DB_NAME: ${RESERVATION_DB_NAME:-reservation_db}
+      AUTH_USER_SERVICE_URL: http://auth-user-service:8001
+      RESTAURANT_SERVICE_URL: http://restaurant-service:8002
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:?Задай INTERNAL_TOKEN в .env}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-booking}:${RABBITMQ_PASS:?Задай RABBITMQ_PASS в .env}@rabbitmq:5672
+    depends_on:
+      reservation-db:
+        condition: service_healthy
+      auth-user-service:
+        condition: service_started
+      restaurant-service:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${RESERVATION_HOST_PORT:-8013}:8003"   # только для Swagger (/docs) через nginx
+    networks:
+      - internal
+
+  review-service:
+    build:
+      context: ./services/review-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: ${REVIEW_PORT:-8004}
+      DB_HOST: review-db
+      DB_PORT: 5432
+      DB_USER: ${REVIEW_DB_USER:-review_user}
+      DB_PASSWORD: ${REVIEW_DB_PASSWORD:?Задай REVIEW_DB_PASSWORD в .env}
+      DB_NAME: ${REVIEW_DB_NAME:-review_db}
+      RESTAURANT_SERVICE_URL: http://restaurant-service:8002
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:?Задай INTERNAL_TOKEN в .env}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-booking}:${RABBITMQ_PASS:?Задай RABBITMQ_PASS в .env}@rabbitmq:5672
+    depends_on:
+      review-db:
+        condition: service_healthy
+      restaurant-service:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${REVIEW_HOST_PORT:-8014}:8004"   # только для Swagger (/docs) через nginx
+    networks:
+      - internal
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: ${GATEWAY_PORT:-8000}
+      AUTH_USER_SERVICE_URL: http://auth-user-service:8001
+      RESTAURANT_SERVICE_URL: http://restaurant-service:8002
+      RESERVATION_SERVICE_URL: http://reservation-service:8003
+      REVIEW_SERVICE_URL: http://review-service:8004
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Задай JWT_SECRET_KEY в .env}
+      JWT_SECRET: ${JWT_SECRET_KEY}   # gateway/server.js читает именно JWT_SECRET
+    depends_on:
+      - auth-user-service
+      - restaurant-service
+      - reservation-service
+      - review-service
+    ports:
+      - "127.0.0.1:${GATEWAY_HOST_PORT:-8010}:8000"
+    networks:
+      - internal
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-booking}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:?Задай RABBITMQ_PASS в .env}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  auth_db_data:
+  restaurant_db_data:
+  reservation_db_data:
+  review_db_data:
+  rabbitmq_data:
