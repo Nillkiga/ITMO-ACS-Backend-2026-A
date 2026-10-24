@@ -1,0 +1,91 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]                 # ветка-триггер автодеплоя (поменяй, если нужна другая)
+    paths-ignore: ['**/*.md', '**/*.pdf', '**/*.docx']
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  APP_DIR: labs/lab3                 # где в репозитории лежит compose.yaml
+  SERVER_DIR: /opt/myproject         # куда класть код на сервере
+  GATEWAY_PORT: '8010'               # порт gateway на сервере (127.0.0.1)
+  HEALTH_PATH: /api/restaurants      # маршрут, по которому проверяем, что API отвечает
+
+jobs:
+  check:
+    name: Check compose file
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate docker compose config
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+
+  deploy:
+    name: Deploy to server
+    needs: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_KEY: ${{ secrets.SSH_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare SSH
+        run: |
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Upload code of this commit
+        run: |
+          SSH=(ssh -i ~/.ssh/deploy_key -p "${SSH_PORT:-22}" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes)
+          git archive --format=tar.gz "HEAD:${APP_DIR}" \
+            | "${SSH[@]}" "$SSH_USER@$SSH_HOST" "mkdir -p '$SERVER_DIR' && tar -xzf - -C '$SERVER_DIR' && echo '$GITHUB_SHA' > '$SERVER_DIR/.deployed-sha'"
+
+      - name: Rebuild, restart and verify
+        run: |
+          SSH=(ssh -i ~/.ssh/deploy_key -p "${SSH_PORT:-22}" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes)
+          "${SSH[@]}" "$SSH_USER@$SSH_HOST" bash -s -- "$SERVER_DIR" "$GATEWAY_PORT" "$HEALTH_PATH" <<'REMOTE'
+          set -euo pipefail
+          cd "$1"
+          [ -f .env ] || { echo "Нет $1/.env: создай его на сервере (labs/lab4/scripts/init-env.sh)"; exit 1; }
+          docker compose config --quiet
+          docker compose up -d --build --remove-orphans
+          bad=x
+          for _ in $(seq 1 30); do
+            bad=$(docker compose ps --all --format '{{.Service}} {{.State}} {{.Health}}' | awk '$2!="running" || ($3!="" && $3!="healthy")' || true)
+            [ -z "$bad" ] && break
+            sleep 10
+          done
+          docker compose ps
+          [ -z "$bad" ] || { echo "Не готовы:"; echo "$bad"; docker compose logs --tail=40; exit 1; }
+          code=000
+          for _ in $(seq 1 12); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$2$3" || true)
+            [ "$code" -ge 200 ] && [ "$code" -lt 500 ] && break
+            sleep 5
+          done
+          echo "gateway $3 -> $code"
+          [ "$code" -ge 200 ] && [ "$code" -lt 500 ]
+          echo "Deployed commit: $(cat .deployed-sha)"
+          REMOTE
+
+      - name: Remove credentials
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
