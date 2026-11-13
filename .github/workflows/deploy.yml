@@ -15,7 +15,7 @@ jobs:
       - name: Validate docker compose config
         working-directory: labs/lab3
         run: |
-          docker compose config --quiet
+          docker compose --env-file .env.ci config --quiet
 
   build:
     name: Build images
@@ -26,7 +26,7 @@ jobs:
       - name: Build docker images
         working-directory: labs/lab3
         run: |
-          docker compose build --pull
+          docker compose --env-file .env.ci build --pull
 
   deploy:
     name: Deploy to server
@@ -36,11 +36,15 @@ jobs:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
           script: |
             cd /opt/myproject/labs/lab3
             docker compose up -d --remove-orphans
             sleep 10
-
 
   healthcheck:
     name: Health check
