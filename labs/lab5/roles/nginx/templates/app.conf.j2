@@ -1,0 +1,70 @@
+# {{ ansible_managed }}
+# Nginx reverse proxy configuration for restaurant booking application
+
+upstream backend {
+{% for server in nginx_upstreams[0].servers %}
+    server {{ server }};
+{% endfor %}
+    keepalive 32;
+}
+
+server {
+    listen {{ nginx_port }};
+    server_name {{ nginx_domain }} {{ ansible_host }} {{ public_ip | default('_') }};
+
+    access_log /var/log/nginx/app_access.log main;
+    error_log /var/log/nginx/app_error.log warn;
+
+    # Gateway health check
+    location /health {
+        proxy_pass http://backend;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        access_log off;
+    }
+
+    # Main application
+    location / {
+        proxy_pass http://backend;
+        proxy_http_version 1.1;
+        
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        
+        proxy_buffering off;
+        proxy_request_buffering off;
+    }
+
+    # Microservices Swagger docs (только для dev/staging)
+    location ~ ^/(auth|restaurant|reservation|review)/docs {
+        proxy_pass http://127.0.0.1;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        
+        # Uncomment for production to disable docs
+        # return 404;
+    }
+}
+
+{% if monitoring_enabled %}
+# Grafana (только с localhost или через VPN)
+server {
+    listen 127.0.0.1:{{ grafana_port }};
+    server_name localhost;
+    
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+{% endif %}

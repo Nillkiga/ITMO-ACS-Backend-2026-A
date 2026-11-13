@@ -1,0 +1,8 @@
+---
+# App role default variables
+
+app_user: deploy
+app_group: deploy
+app_dir: /opt/app
+app_repo: ""
+app_branch: main

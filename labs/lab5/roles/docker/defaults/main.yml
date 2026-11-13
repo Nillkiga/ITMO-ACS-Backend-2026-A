@@ -1,0 +1,12 @@
+---
+# Docker role default variables
+
+docker_edition: ce
+docker_packages:
+  - docker-{{ docker_edition }}
+  - docker-{{ docker_edition }}-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
+
+docker_users: []

@@ -1,0 +1,32 @@
+# Ansible gitignore
+
+# Retry files
+*.retry
+
+# Vault files (если используешь vault)
+*vault*
+*.vault
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+*~
+
+# Python
+__pycache__/
+*.pyc
+
+# Ansible facts cache
+/tmp/ansible_facts/
+
+# Local testing
+test_inventory.yml
+local_vars.yml
+
+# IDE
+.vscode/
+.idea/
+*.iml

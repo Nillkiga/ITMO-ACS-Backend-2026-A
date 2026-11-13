@@ -1,0 +1,91 @@
+# Общие переменные для всех хостов
+
+# === System settings ===
+timezone: "Europe/Moscow"
+locale: "en_US.UTF-8"
+
+# === Application settings ===
+app_user: keksik
+app_group: keksik
+app_dir: /opt/myproject
+app_repo: "https://github.com/Nillkiga/ITMO-ACS-Backend-2026-A.git"
+app_branch: main
+
+# === Docker settings ===
+docker_edition: ce
+docker_packages:
+  - docker-{{ docker_edition }}
+  - docker-{{ docker_edition }}-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
+
+docker_users:
+  - "{{ app_user }}"
+
+# === Nginx settings ===
+nginx_domain: "your-domain.com"  # ЗАМЕНИ на свой домен (или localhost)
+nginx_port: 82                    # Внешний порт (из твоего конфига)
+nginx_backend_port: 8010          # Gateway port
+
+# Upstream серверы для nginx
+nginx_upstreams:
+  - name: backend
+    servers:
+      - "127.0.0.1:8010"
+
+# SSL (закомментировано, пока не нужно HTTPS)
+# nginx_ssl_enabled: true
+# nginx_ssl_certificate: /etc/letsencrypt/live/{{ nginx_domain }}/fullchain.pem
+# nginx_ssl_certificate_key: /etc/letsencrypt/live/{{ nginx_domain }}/privkey.pem
+
+# === Security settings ===
+# SSH
+ssh_port: 2222
+ssh_permit_root_login: "no"
+ssh_password_authentication: "no"
+ssh_pubkey_authentication: "yes"
+ssh_max_auth_tries: 3
+
+# UFW Firewall
+ufw_rules:
+  - { port: 22, proto: tcp, rule: allow, comment: "SSH (emergency fallback)" }
+  - { port: "{{ ssh_port }}", proto: tcp, rule: allow, comment: "SSH custom port" }
+  - { port: 80, proto: tcp, rule: allow, comment: "HTTP" }
+  - { port: 443, proto: tcp, rule: allow, comment: "HTTPS" }
+  - { port: "{{ nginx_port }}", proto: tcp, rule: allow, comment: "Nginx custom port" }
+
+# Fail2ban
+fail2ban_enabled: true
+fail2ban_maxretry: 5
+fail2ban_findtime: 600
+fail2ban_bantime: 3600
+
+# === Monitoring settings (для будущей ЛР6) ===
+monitoring_enabled: true
+grafana_port: 3000
+prometheus_port: 9090
+
+# === System packages ===
+common_packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - software-properties-common
+  - git
+  - vim
+  - htop
+  - tree
+  - net-tools
+  - ufw
+  - fail2ban
+  - python3-pip
+  - acl
+  - unzip
+
+# === Python packages ===
+pip_packages:
+  - docker
+  - docker-compose

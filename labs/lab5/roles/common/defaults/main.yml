@@ -1,0 +1,17 @@
+---
+# Common role default variables
+
+timezone: "UTC"
+locale: "en_US.UTF-8"
+
+common_packages:
+  - curl
+  - git
+  - vim
+  - htop
+
+pip_packages: []
+
+app_user: deploy
+app_group: deploy
+app_dir: /opt/app

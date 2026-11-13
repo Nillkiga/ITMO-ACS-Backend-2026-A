@@ -1,0 +1,31 @@
+---
+# Quick setup playbook - только Docker и Nginx
+# Для быстрой настройки нового сервера
+
+- name: Quick server setup
+  hosts: production
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+  roles:
+    - role: docker
+      tags: [docker]
+
+    - role: nginx
+      tags: [nginx]
+
+  post_tasks:
+    - name: Display quick setup completion
+      debug:
+        msg: |
+          Quick setup completed!
+          - Docker: Installed
+          - Nginx: Configured
+          
+          Next: Run full setup with playbooks/setup.yml

@@ -1,0 +1,8 @@
+---
+# App role handlers
+
+- name: Restart application
+  shell: |
+    cd {{ app_dir }}/labs/lab3
+    docker compose restart
+  become_user: "{{ app_user }}"

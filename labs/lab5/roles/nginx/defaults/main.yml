@@ -1,0 +1,13 @@
+---
+# Nginx role default variables
+
+nginx_port: 80
+nginx_backend_port: 8010
+nginx_domain: localhost
+
+nginx_upstreams:
+  - name: backend
+    servers:
+      - "127.0.0.1:{{ nginx_backend_port }}"
+
+monitoring_enabled: true

@@ -1,0 +1,58 @@
+---
+# Ansible playbook для healthcheck приложения
+
+- name: Application healthcheck
+  hosts: production
+  become: true
+  gather_facts: false
+
+  vars:
+    compose_dir: "{{ app_dir }}/labs/lab3"
+
+  tasks:
+    - name: Check Docker service status
+      systemd:
+        name: docker
+      register: docker_service
+
+    - name: Check Nginx service status
+      systemd:
+        name: nginx
+      register: nginx_service
+
+    - name: Get running containers
+      shell: |
+        cd {{ compose_dir }}
+        docker compose ps --format json
+      register: containers
+      changed_when: false
+
+    - name: Run healthcheck script
+      shell: |
+        cd {{ compose_dir }}
+        ./scripts/healthcheck.sh
+      register: healthcheck
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Display health status
+      debug:
+        msg: |
+          === System Health Report ===
+          
+          Services:
+          - Docker: {{ docker_service.status.ActiveState }}
+          - Nginx: {{ nginx_service.status.ActiveState }}
+          
+          Containers:
+          {{ containers.stdout }}
+          
+          Application Health:
+          {{ healthcheck.stdout }}
+          
+          Status: {{ 'HEALTHY ✓' if healthcheck.rc == 0 else 'UNHEALTHY ✗' }}
+
+    - name: Fail if unhealthy
+      fail:
+        msg: "Application is unhealthy!"
+      when: healthcheck.rc != 0

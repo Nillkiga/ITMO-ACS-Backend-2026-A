@@ -1,0 +1,75 @@
+---
+# Deploy playbook - деплой приложения через ansible
+# Альтернатива GitHub Actions для ручного деплоя
+
+- name: Deploy application
+  hosts: production
+  become: true
+  become_user: "{{ app_user }}"
+  gather_facts: false
+
+  vars:
+    compose_dir: "{{ app_dir }}/labs/lab3"
+
+  tasks:
+    - name: Pull latest changes from git
+      git:
+        repo: "{{ app_repo }}"
+        dest: "{{ app_dir }}"
+        version: "{{ app_branch }}"
+        force: yes
+      tags: git
+
+    - name: Check if .env exists
+      stat:
+        path: "{{ compose_dir }}/.env"
+      register: env_file
+
+    - name: Initialize .env if not exists
+      shell: |
+        cd {{ compose_dir }}
+        ./scripts/init-env.sh
+      when: not env_file.stat.exists
+      tags: env
+
+    - name: Pull Docker images
+      shell: |
+        cd {{ compose_dir }}
+        docker compose pull --quiet || true
+      tags: docker
+
+    - name: Build and deploy containers
+      shell: |
+        cd {{ compose_dir }}
+        docker compose build --pull
+        docker compose up -d --remove-orphans
+      tags: docker
+
+    - name: Wait for containers to start
+      pause:
+        seconds: 15
+      tags: health
+
+    - name: Run healthcheck
+      shell: |
+        cd {{ compose_dir }}
+        ./scripts/healthcheck.sh
+      register: healthcheck
+      tags: health
+
+    - name: Display healthcheck results
+      debug:
+        var: healthcheck.stdout_lines
+      tags: health
+
+    - name: Display running containers
+      shell: |
+        cd {{ compose_dir }}
+        docker compose ps
+      register: compose_ps
+      tags: status
+
+    - name: Show container status
+      debug:
+        var: compose_ps.stdout_lines
+      tags: status

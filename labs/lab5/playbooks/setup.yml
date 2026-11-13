@@ -1,0 +1,66 @@
+---
+# Главный playbook для настройки сервера
+# Запуск: ansible-playbook -i inventory/hosts.yml playbooks/setup.yml
+
+- name: Setup production server for microservices application
+  hosts: production
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Display target host info
+      debug:
+        msg: |
+          Configuring server: {{ inventory_hostname }}
+          IP: {{ ansible_host }}
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          User: {{ ansible_user }}
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      tags: always
+
+  roles:
+    - role: common
+      tags: [common, base]
+
+    - role: security
+      tags: [security]
+
+    - role: docker
+      tags: [docker]
+
+    - role: nginx
+      tags: [nginx, web]
+
+    - role: app
+      tags: [app, application]
+
+  post_tasks:
+    - name: Display completion message
+      debug:
+        msg: |
+          ========================================
+          Server setup completed successfully!
+          ========================================
+          
+          Next steps:
+          1. Deploy application: cd {{ app_dir }}/labs/lab3 && docker compose up -d
+          2. Check nginx: systemctl status nginx
+          3. Access app: http://{{ ansible_host }}:{{ nginx_port }}
+          4. Access Grafana: http://{{ ansible_host }}:3000
+          
+          Services status:
+          - Docker: {{ 'Running' if ansible_facts.services['docker.service'].state == 'running' else 'Not running' }}
+          - Nginx: {{ 'Running' if ansible_facts.services['nginx.service'].state == 'running' else 'Not running' }}
+          - UFW: Enabled
+      tags: always
+
+    - name: Reboot if required
+      reboot:
+        msg: "Reboot initiated by Ansible after system updates"
+        reboot_timeout: 600
+      when: reboot_required is defined and reboot_required
+      tags: [never, reboot]

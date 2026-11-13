@@ -1,0 +1,106 @@
+---
+# App role - подготовка окружения для приложения
+
+- name: Ensure application directory exists
+  file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '0755'
+  tags: app
+
+- name: Check if repository already cloned
+  stat:
+    path: "{{ app_dir }}/.git"
+  register: git_repo
+  tags: app
+
+- name: Clone application repository
+  git:
+    repo: "{{ app_repo }}"
+    dest: "{{ app_dir }}"
+    version: "{{ app_branch }}"
+    force: no
+  become_user: "{{ app_user }}"
+  when: not git_repo.stat.exists
+  tags: app
+
+- name: Create .env file if not exists
+  stat:
+    path: "{{ app_dir }}/labs/lab3/.env"
+  register: env_file
+  tags: app
+
+- name: Copy .env.example to .env
+  copy:
+    src: "{{ app_dir }}/labs/lab3/.env.example"
+    dest: "{{ app_dir }}/labs/lab3/.env"
+    remote_src: yes
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '0600'
+  when: not env_file.stat.exists
+  tags: app
+
+- name: Make scripts executable
+  file:
+    path: "{{ item }}"
+    mode: '0755'
+  loop:
+    - "{{ app_dir }}/labs/lab3/scripts/healthcheck.sh"
+    - "{{ app_dir }}/labs/lab3/scripts/init-env.sh"
+  ignore_errors: yes
+  tags: app
+
+- name: Create logs directory
+  file:
+    path: "{{ app_dir }}/logs"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '0755'
+  tags: app
+
+- name: Create docker compose override file (optional)
+  copy:
+    content: |
+      # Override для production
+      # Раскомментируй нужные настройки
+      
+      # services:
+      #   gateway:
+      #     restart: always
+      #   
+      #   grafana:
+      #     environment:
+      #       GF_SERVER_ROOT_URL: http://{{ ansible_host }}:3000
+      #       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+    dest: "{{ app_dir }}/labs/lab3/docker-compose.override.yml"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '0644'
+    force: no
+  tags: app
+
+- name: Set proper ownership recursively
+  file:
+    path: "{{ app_dir }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    recurse: yes
+  tags: app
+
+- name: Display app setup info
+  debug:
+    msg: |
+      Application setup completed:
+      - App directory: {{ app_dir }}
+      - Owner: {{ app_user }}:{{ app_group }}
+      - Repository: {{ 'Cloned' if not git_repo.stat.exists else 'Already exists' }}
+      
+      Next steps:
+      1. Initialize .env: cd {{ app_dir }}/labs/lab3 && ./scripts/init-env.sh
+      2. Start app: docker compose up -d
+      3. Check status: docker compose ps
+  tags: app

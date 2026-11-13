@@ -1,0 +1,11 @@
+---
+# Common role handlers
+
+- name: Restart systemd-resolved
+  systemd:
+    name: systemd-resolved
+    state: restarted
+
+- name: Update timezone
+  command: timedatectl set-timezone {{ timezone }}
+  changed_when: false

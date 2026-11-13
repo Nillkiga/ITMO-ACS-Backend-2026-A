@@ -18,12 +18,38 @@ jobs:
           cp .env.example .env
           docker compose config --quiet
 
-  deploy:
-    name: Deploy to server
+  build:
+    name: Build images
     needs: check
     runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@v4
+      - name: Build docker images
+        working-directory: labs/lab3
+        run: |
+          cp .env.example .env
+          docker compose build --pull
+
+  deploy:
+    name: Deploy to server
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
       - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          script: |
+            cd /opt/myproject/labs/lab3
+            docker compose up -d --remove-orphans
+            sleep 10
+
+
+  healthcheck:
+    name: Health check
+    needs: deploy
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check all services
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -32,16 +58,6 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
           script: |
-            mkdir -p /opt/myproject
-            cd /opt/myproject
-            
-            # Если папка пустая, клонируем, иначе просто обновляем
-            if [ ! -d ".git" ]; then
-              git clone https://github.com/${{ github.repository }}.git .
-            else
-              git pull origin main
-            fi
-            
-            cd labs/lab3
-            docker compose down
-            docker compose up -d --build
+            cd /opt/myproject/labs/lab3
+            chmod +x scripts/healthcheck.sh
+            ./scripts/healthcheck.sh

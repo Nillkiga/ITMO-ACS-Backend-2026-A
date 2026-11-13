@@ -1,0 +1,12 @@
+---
+# Security handlers
+
+- name: Restart SSH
+  systemd:
+    name: sshd
+    state: restarted
+
+- name: Restart Fail2ban
+  systemd:
+    name: fail2ban
+    state: restarted

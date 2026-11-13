@@ -1,0 +1,11 @@
+# Requirements for Ansible playbooks
+
+# Core Ansible
+ansible>=2.14,<2.16
+
+# Community collections
+# Install with: ansible-galaxy collection install -r requirements.yml
+
+# Python dependencies for modules
+docker>=6.0.0
+docker-compose>=1.29.0

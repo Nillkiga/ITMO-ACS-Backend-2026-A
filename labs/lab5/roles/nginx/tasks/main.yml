@@ -1,0 +1,99 @@
+---
+# Nginx role - установка и настройка Nginx
+
+- name: Install Nginx
+  apt:
+    name: nginx
+    state: present
+  tags: nginx
+
+- name: Start and enable Nginx service
+  systemd:
+    name: nginx
+    state: started
+    enabled: yes
+  tags: nginx
+
+- name: Remove default Nginx site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Reload Nginx
+  tags: nginx
+
+- name: Create Nginx conf.d directory
+  file:
+    path: /etc/nginx/conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: nginx
+
+- name: Deploy Nginx main configuration
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: '0644'
+    validate: 'nginx -t -c %s'
+  notify: Reload Nginx
+  tags: nginx
+
+- name: Deploy application reverse proxy config
+  template:
+    src: app.conf.j2
+    dest: /etc/nginx/conf.d/app.conf
+    owner: root
+    group: root
+    mode: '0644'
+    validate: 'nginx -t'
+  notify: Reload Nginx
+  tags: nginx
+
+- name: Ensure Nginx log directory exists
+  file:
+    path: /var/log/nginx
+    state: directory
+    owner: www-data
+    group: adm
+    mode: '0755'
+  tags: nginx
+
+- name: Configure logrotate for Nginx
+  copy:
+    content: |
+      /var/log/nginx/*.log {
+        daily
+        missingok
+        rotate 14
+        compress
+        delaycompress
+        notifempty
+        create 0640 www-data adm
+        sharedscripts
+        postrotate
+          [ -f /var/run/nginx.pid ] && kill -USR1 $(cat /var/run/nginx.pid)
+        endscript
+      }
+    dest: /etc/logrotate.d/nginx
+    owner: root
+    group: root
+    mode: '0644'
+  tags: nginx
+
+- name: Verify Nginx configuration
+  command: nginx -t
+  register: nginx_test
+  changed_when: false
+  tags: nginx
+
+- name: Display Nginx setup info
+  debug:
+    msg: |
+      Nginx setup completed:
+      - Config test: {{ nginx_test.stderr }}
+      - Listen port: {{ nginx_port }}
+      - Backend: {{ nginx_backend_port }}
+  tags: nginx
