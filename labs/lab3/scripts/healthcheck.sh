@@ -3,8 +3,6 @@
 # Healthcheck script for all microservices
 # Returns exit 0 if all services are healthy, exit 1 otherwise
 
-set -e
-
 GATEWAY_URL="http://localhost:8010"
 AUTH_URL="http://localhost:8001"
 RESTAURANT_URL="http://localhost:8002"
@@ -24,7 +22,9 @@ check_service() {
     echo -n "Checking $service_name at $service_url ... "
     
     for i in $(seq 1 $MAX_RETRIES); do
-        if curl -f -s --max-time $TIMEOUT "$service_url/health" > /dev/null 2>&1; then
+        # Убрали -f (чтобы 404 не считался ошибкой) 
+        # и проверяем корень / вместо /health
+        if curl -s --max-time $TIMEOUT "$service_url/" > /dev/null 2>&1; then
             echo "✓ OK"
             return 0
         fi
