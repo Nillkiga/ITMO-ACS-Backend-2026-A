@@ -5,6 +5,7 @@ import { useExpressServer } from 'routing-controllers';
 import { dataSource } from './config/data-source';
 import { ReviewController } from './controllers/review.controller';
 import { InternalController } from './controllers/internal.controller';
+import { HealthController } from './controllers/health.controller';
 import settings from './config/settings';
 import { useSwagger } from './swagger';
 import { getRabbitChannel } from './rabbitmq';
@@ -14,7 +15,7 @@ app.use(cors());
 app.use(express.json());
 
 const server = useExpressServer(app, {
-    controllers: [ReviewController, InternalController],
+    controllers: [ReviewController, InternalController, HealthController],
     validation: true,
     classTransformer: true,
     defaultErrorHandler: true,

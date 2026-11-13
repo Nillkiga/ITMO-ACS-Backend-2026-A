@@ -5,6 +5,7 @@ import { useExpressServer } from 'routing-controllers';
 import { dataSource } from './config/data-source';
 import { RestaurantController } from './controllers/restaurant.controller';
 import { InternalController } from './controllers/internal.controller';
+import { HealthController } from './controllers/health.controller';
 import settings from './config/settings';
 import { useSwagger } from './swagger';
 import { subscribeToEvents } from './rabbitmq';
@@ -15,7 +16,7 @@ app.use(cors());
 app.use(express.json());
 
 const server = useExpressServer(app, {
-    controllers: [RestaurantController, InternalController],
+    controllers: [RestaurantController, InternalController, HealthController],
     validation: true,
     classTransformer: true,
     defaultErrorHandler: true,

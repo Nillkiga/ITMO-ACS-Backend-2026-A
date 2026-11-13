@@ -6,6 +6,7 @@ import { dataSource } from './config/data-source';
 import { AuthController } from './controllers/auth.controller';
 import { UserController } from './controllers/user.controller';
 import { InternalController } from './controllers/internal.controller';
+import { HealthController } from './controllers/health.controller';
 import settings from './config/settings';
 import { useSwagger } from './swagger';
 
@@ -14,7 +15,7 @@ app.use(cors());
 app.use(express.json());
 
 const server = useExpressServer(app, {
-    controllers: [AuthController, UserController, InternalController],
+    controllers: [AuthController, UserController, InternalController, HealthController],
     validation: true,
     classTransformer: true,
     defaultErrorHandler: true,

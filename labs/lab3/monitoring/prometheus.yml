@@ -1,0 +1,25 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  - job_name: 'docker-containers'
+    static_configs:
+      - targets:
+          - 'gateway:8000'
+          - 'auth-user-service:8001'
+          - 'restaurant-service:8002'
+          - 'reservation-service:8003'
+          - 'review-service:8004'
