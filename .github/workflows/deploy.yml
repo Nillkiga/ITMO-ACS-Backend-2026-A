@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.0
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
@@ -42,7 +42,10 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
           script: |
-            cd /opt/myproject/labs/lab3
+            cd /opt/myproject
+            git fetch origin
+            git reset --hard origin/main
+            cd labs/lab3
             docker compose up -d --remove-orphans
             sleep 10
 
@@ -52,7 +55,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check all services
-        uses: appleboy/ssh-action@v1.0.0
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
