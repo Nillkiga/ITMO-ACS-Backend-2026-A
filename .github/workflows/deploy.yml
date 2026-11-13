@@ -15,7 +15,6 @@ jobs:
       - name: Validate docker compose config
         working-directory: labs/lab3
         run: |
-          cp .env.example .env
           docker compose config --quiet
 
   build:
