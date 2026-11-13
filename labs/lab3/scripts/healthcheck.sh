@@ -6,10 +6,10 @@
 set -e
 
 GATEWAY_URL="http://localhost:8010"
-AUTH_URL="http://localhost:8011"
-RESTAURANT_URL="http://localhost:8012"
-RESERVATION_URL="http://localhost:8013"
-REVIEW_URL="http://localhost:8014"
+AUTH_URL="http://localhost:8001"
+RESTAURANT_URL="http://localhost:8002"
+RESERVATION_URL="http://localhost:8003"
+REVIEW_URL="http://localhost:8004"
 
 TIMEOUT=5
 MAX_RETRIES=10
