@@ -27,7 +27,6 @@ jobs:
       - name: Build docker images
         working-directory: labs/lab3
         run: |
-          cp .env.example .env
           docker compose build --pull
 
   deploy:
